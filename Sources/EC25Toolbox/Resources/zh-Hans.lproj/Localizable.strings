@@ -1188,8 +1188,9 @@
 
 "settings.group.moduleconfig" = "USB 身份与接口";
 "moduleconfig.identity.label" = "USB 身份";
-"moduleconfig.identity.help" = "EC25 兼容身份为 2C7C:0125；一代 DJI 原始身份为 2CA3:4006。切换身份时保留模块报告的全部接口开关。";
+"moduleconfig.identity.help" = "EC25 兼容身份为 2C7C:0125；EC21 身份为 2C7C:0121；一代 DJI 原始身份为 2CA3:4006。切换身份时保留模块报告的全部接口开关。";
 "moduleconfig.identity.ec25" = "EC25 兼容身份";
+"moduleconfig.identity.ec21" = "EC21";
 "moduleconfig.identity.djiOriginal" = "DJI 原始身份";
 "moduleconfig.identity.vendor_id" = "USB 厂商 ID";
 "moduleconfig.identity.product_id" = "USB 产品 ID";

@@ -381,6 +381,10 @@ struct ModuleConfigSettingsCard: View {
         switch config.composition?.identity {
         case .djiOriginal: .ec25
         case .ec25: .djiOriginal
+        // No identity rewrite is offered for a real EC21: there is no defined
+        // counterpart, and writing AT+QCFG="usbcfg" would change the module's
+        // own USB composition. Deliberately nil.
+        case .ec21: nil
         case nil: nil
         }
     }

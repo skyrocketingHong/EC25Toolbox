@@ -1,18 +1,20 @@
 import Foundation
 
-/// USB identities shipped by the first-generation DJI dongle and used by the
-/// EC25-compatible application profile. Both are accepted by the native
-/// transport so changing identity can always be verified and reversed inside
-/// the app.
+/// USB identities shipped by the first-generation DJI dongle, the
+/// EC25-compatible application profile, and the EC21 series. All are accepted
+/// by the native transport so changing identity can always be verified and
+/// reversed inside the app.
 enum ModuleUSBIdentity: String, CaseIterable, Equatable, Sendable {
     case ec25
+    case ec21
     case djiOriginal
 
-    static let connectionOrder: [ModuleUSBIdentity] = [.ec25, .djiOriginal]
+    static let connectionOrder: [ModuleUSBIdentity] = [.ec25, .ec21, .djiOriginal]
 
     var vendorID: Int {
         switch self {
         case .ec25: 0x2C7C
+        case .ec21: 0x2C7C
         case .djiOriginal: 0x2CA3
         }
     }
@@ -20,6 +22,7 @@ enum ModuleUSBIdentity: String, CaseIterable, Equatable, Sendable {
     var productID: Int {
         switch self {
         case .ec25: 0x0125
+        case .ec21: 0x0121
         case .djiOriginal: 0x4006
         }
     }

@@ -100,10 +100,9 @@ enum ModemNICMatcher {
     }
 
     static func isSupportedIdentity(usbVID: UInt16, usbPID: UInt16) -> Bool {
-        (usbVID == UInt16(ModuleUSBIdentity.ec25.vendorID)
-            && usbPID == UInt16(ModuleUSBIdentity.ec25.productID))
-            || (usbVID == UInt16(ModuleUSBIdentity.djiOriginal.vendorID)
-                && usbPID == UInt16(ModuleUSBIdentity.djiOriginal.productID))
+        ModuleUSBIdentity.allCases.contains {
+            usbVID == UInt16($0.vendorID) && usbPID == UInt16($0.productID)
+        }
     }
 
     /// Formats the six-byte `IOMACAddress` registry value as lowercase

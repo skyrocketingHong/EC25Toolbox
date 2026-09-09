@@ -1188,8 +1188,9 @@
 
 "settings.group.moduleconfig" = "USB Identity & Interfaces";
 "moduleconfig.identity.label" = "USB identity";
-"moduleconfig.identity.help" = "The supported EC25-compatible identity is 2C7C:0125; the original first-generation DJI identity is 2CA3:4006. Identity changes preserve all reported interface switches.";
+"moduleconfig.identity.help" = "The supported EC25-compatible identity is 2C7C:0125; the EC21 identity is 2C7C:0121; the original first-generation DJI identity is 2CA3:4006. Identity changes preserve all reported interface switches.";
 "moduleconfig.identity.ec25" = "EC25-compatible";
+"moduleconfig.identity.ec21" = "EC21";
 "moduleconfig.identity.djiOriginal" = "Original DJI";
 "moduleconfig.identity.vendor_id" = "USB vendor ID";
 "moduleconfig.identity.product_id" = "USB product ID";
