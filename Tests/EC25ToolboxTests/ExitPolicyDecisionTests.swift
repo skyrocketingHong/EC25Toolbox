@@ -108,7 +108,13 @@ final class ExitPolicyDecisionTests: XCTestCase {
 
     func testExitRidesModule() {
         var status = ModemNetworkStatus(
-            nic: ModemNICInfo(usbVID: 0x2c7c, usbPID: 0x0125, bsdName: "en7", macAddress: "aa:bb:cc:dd:ee:ff"),
+            nic: ModemNICInfo(
+                usbDevice: USBModemDescriptor(
+                    vendorID: 0x2c7c, productID: 0x0125, serialNumber: nil, locationID: 0x1000
+                ),
+                bsdName: "en7",
+                macAddress: "aa:bb:cc:dd:ee:ff"
+            ),
             service: nil
         )
         status.defaultPath = ExitPathSnapshot(status: .satisfied, interfaceBSD: "en7", interfaceKind: .wiredEthernet)

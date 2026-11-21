@@ -890,7 +890,7 @@
 /* Transport, errors, and activity log */
 "transport.not_open" = "The native USB AT interface is not open";
 "transport.enumeration_failed" = "USB interface enumeration failed: %@";
-"transport.supported_devices_not_found" = "No supported EC25 or original DJI USB identity could be opened: %@";
+"transport.supported_devices_not_found" = "Could not open a supported USB modem: %@";
 "transport.interface_not_found" = "No accessible %@ USB interface was found. Check that the device is connected and not in use by another app.";
 "transport.at_interface_not_found" = "No USB bulk interface responded to AT%@";
 "transport.interface_probe_failed" = "if%d out=0x%02x in=0x%02x; initial=%@; retry=%@%@";
@@ -1188,8 +1188,9 @@
 
 "settings.group.moduleconfig" = "USB Identity & Interfaces";
 "moduleconfig.identity.label" = "USB identity";
-"moduleconfig.identity.help" = "The supported EC25-compatible identity is 2C7C:0125; the original first-generation DJI identity is 2CA3:4006. Identity changes preserve all reported interface switches.";
+"moduleconfig.identity.help" = "USB identity switching is available for the EC25-compatible and original first-generation DJI identities. EC21 identity and interface settings are read-only.";
 "moduleconfig.identity.ec25" = "EC25-compatible";
+"moduleconfig.identity.ec21" = "EC21";
 "moduleconfig.identity.djiOriginal" = "Original DJI";
 "moduleconfig.identity.vendor_id" = "USB vendor ID";
 "moduleconfig.identity.product_id" = "USB product ID";
@@ -1238,6 +1239,7 @@
 "moduleconfig.plan.title.mac_full" = "Mac full-mode plan";
 "moduleconfig.plan.title.mobile" = "iPhone/iPad mode plan";
 "moduleconfig.plan.apply_hint" = "Applying writes the command above and reboots the module; a fresh backup is taken first.";
+"moduleconfig.plan.unavailable" = "This preset is unavailable for the current module configuration.";
 "moduleconfig.plan.already_standard" = "The current configuration already matches Mac full mode (standard EC25 composition with USB Audio on); nothing to change.";
 "moduleconfig.plan.already_mobile" = "USB Audio is already off; the module matches iPhone/iPad mode.";
 "moduleconfig.log.backed_up" = "Module configuration backup saved.";
@@ -1445,7 +1447,8 @@
 "gnss.capability.note.supported" = "The firmware confirmed GNSS support; you can start the engine.";
 "gnss.capability.note.unsupported" = "The current firmware/USB combination definitively reports no GNSS support, so positioning cannot start on this module. Re-probe to confirm, or check the module model and firmware.";
 "network.empty.no_nic_connected" = "The modem is connected, but no ECM/MBIM/RMNET interface was found. Check the USB network mode under Settings → Device, then retry.";
-"network.empty.disconnected" = "No EC25-compatible device is connected. Once connected, this page shows the modem interface, network service, exit policy, and traffic.";
+"network.empty.disconnected" = "Connect a supported USB modem to view its network interface, service, exit policy, and traffic.";
+"network.empty.local_only" = "View and manage the USB network service on the Mac the modem is connected to.";
 "network.empty.usb_mode" = "Current USB mode";
 "network.field.usb_mode" = "USB network mode";
 

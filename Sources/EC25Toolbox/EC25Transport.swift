@@ -48,9 +48,8 @@ actor EC25Transport {
         eventBus.addSubscriber().stream
     }
 
-    /// Opens either supported module identity. EC25-compatible identity is
-    /// preferred, then the original first-generation DJI 2ca3:4006 identity,
-    /// so first-use setup and a later restore both remain reachable.
+    /// Opens the requested physical module, or probes the supported USB
+    /// identities in connection order when no module is selected.
     func open() throws -> String {
         if let targetDevice {
             return try open(
@@ -427,6 +426,9 @@ actor EC25Transport {
                     return value
                 }
             }
+
+            // USB serial and location belong to this device, never its hub.
+            if IOObjectConformsTo(current, "IOUSBHostDevice") != 0 { break }
 
             var parent: io_registry_entry_t = 0
             let result = IORegistryEntryGetParentEntry(current, kIOServicePlane, &parent)

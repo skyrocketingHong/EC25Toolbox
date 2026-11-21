@@ -6,9 +6,8 @@ import SystemConfiguration
 /// services bound to it. Everything here only reads system state — creating or
 /// mutating services goes through the privileged helper.
 enum ModemNICDiscovery {
-    /// Finds every Ethernet interface whose IORegistry ancestry carries the
-    /// Quectel vendor id. Cheap registry walk, safe to run on any queue.
-    static func discoverModuleNICs(vendorID: UInt16 = ModemNICMatcher.quectelVendorID) -> [ModemNICInfo] {
+    /// Finds Ethernet interfaces whose IORegistry ancestry leads to a supported modem.
+    private static func discoverModuleNICs() -> [ModemNICInfo] {
         guard let matching = IOServiceMatching("IOEthernetInterface") else { return [] }
         var iterator: io_iterator_t = 0
         guard IOServiceGetMatchingServices(kIOMainPortDefault, matching, &iterator) == KERN_SUCCESS else {
@@ -21,7 +20,7 @@ enum ModemNICDiscovery {
             let service = IOIteratorNext(iterator)
             guard service != 0 else { break }
             defer { IOObjectRelease(service) }
-            guard let info = moduleNIC(for: service, vendorID: vendorID) else { continue }
+            guard let info = moduleNIC(for: service) else { continue }
             results.append(info)
         }
         return results.sorted { $0.bsdName < $1.bsdName }
@@ -56,41 +55,38 @@ enum ModemNICDiscovery {
         }
     }
 
-    /// Combines discovery and service lookup into the published snapshot.
-    static func currentStatus() -> ModemNetworkStatus {
-        let nic = discoverModuleNICs().first
+    static func nic(for device: USBModemDescriptor?) -> ModemNICInfo? {
+        guard let device else { return nil }
+        return ModemNICMatcher.interface(for: device, in: discoverModuleNICs())
+    }
+
+    /// Resolves the interface and service for the same physical module.
+    static func currentStatus(for device: USBModemDescriptor?) -> ModemNetworkStatus {
+        let nic = nic(for: device)
         let service = nic.flatMap { target in
             currentServices().first { $0.bsdName == target.bsdName }
         }
         return ModemNetworkStatus(nic: nic, service: service)
     }
 
-    private static func moduleNIC(for service: io_service_t, vendorID: UInt16) -> ModemNICInfo? {
-        guard let usb = usbAncestor(of: service, vendorID: vendorID),
+    private static func moduleNIC(for service: io_service_t) -> ModemNICInfo? {
+        guard let usbDevice = usbAncestor(of: service),
               let bsdName = stringProperty(service, "BSD Name"), !bsdName.isEmpty else { return nil }
         let mac = macAddress(for: service).flatMap(ModemNICMatcher.formatMAC) ?? ""
-        return ModemNICInfo(
-            usbVID: usb.vid,
-            usbPID: usb.pid,
-            bsdName: bsdName,
-            macAddress: mac
-        )
+        return ModemNICInfo(usbDevice: usbDevice, bsdName: bsdName, macAddress: mac)
     }
 
-    /// Walks the service plane parents looking for the USB device node that
-    /// owns the interface. Non-USB interfaces (built-in Ethernet, virtual
-    /// bridges) reach the registry root without a match and are filtered out.
-    private static func usbAncestor(of service: io_service_t, vendorID: UInt16) -> (vid: UInt16, pid: UInt16)? {
+    /// Walks the service plane to the USB device owning the network interface.
+    private static func usbAncestor(of service: io_service_t) -> USBModemDescriptor? {
         var current = service
         var ownsCurrent = false
         defer { if ownsCurrent { IOObjectRelease(current) } }
         for _ in 0..<24 {
-            if let vid = uint16Property(current, "idVendor"),
-               let pid = uint16Property(current, "idProduct"),
-               ((vendorID == ModemNICMatcher.quectelVendorID
-                    && ModemNICMatcher.isSupportedIdentity(usbVID: vid, usbPID: pid))
-                || (vendorID != ModemNICMatcher.quectelVendorID && vid == vendorID)) {
-                return (vid, pid)
+            if IOObjectConformsTo(current, "IOUSBHostDevice") != 0 {
+                guard let vid = uint16Property(current, "idVendor"),
+                      let pid = uint16Property(current, "idProduct"),
+                      ModemNICMatcher.isSupportedIdentity(usbVID: vid, usbPID: pid) else { return nil }
+                return EC25Transport.deviceDescriptor(for: current, vendorID: Int(vid), productID: Int(pid))
             }
             var parent: io_service_t = 0
             guard IORegistryEntryGetParentEntry(current, kIOServicePlane, &parent) == KERN_SUCCESS,
@@ -140,7 +136,7 @@ enum ModemNICDiscovery {
         if let number = value as? NSNumber { return UInt16(exactly: number.intValue) }
         // Some USB properties surface as 16-bit little-endian data.
         if let data = value as? Data, data.count == 2 {
-            return data.withUnsafeBytes { $0.load(as: UInt16.self) }
+            return data.withUnsafeBytes { UInt16(littleEndian: $0.loadUnaligned(as: UInt16.self)) }
         }
         return nil
     }

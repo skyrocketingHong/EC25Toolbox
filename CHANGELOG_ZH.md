@@ -4,6 +4,18 @@
 
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)。
 
+## 27.1.1
+
+### 新增
+
+- 识别 Quectel EC21 的 USB 身份 `2c7c:0121`，支持通过 AT 通道管理。贡献者已在 EC21-EUX 上验证基础 AT 查询。语音、eUICC、VoWiFi 和 USB 联网尚未在 EC21 上验证。
+
+### 修复
+
+- 网络状态、服务操作、DHCP 恢复与流量采样均按当前物理 USB 模块匹配。
+- EC21 的 USB 身份和接口设置为只读，模块配置预设显示为不可用。
+- 打包版本默认读取应用源码 plist，发布归档名称和 IMS User-Agent 使用打包后的应用版本。
+
 ## 27.1
 
 本节仅记录当前源码树相对远端 `main` 基线的最终净变化。

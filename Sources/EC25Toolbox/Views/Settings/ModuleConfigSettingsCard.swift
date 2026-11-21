@@ -29,11 +29,11 @@ struct ModuleConfigSettingsCard: View {
         canRead
             && config.applyPhase.allowsNewApply
             && !(config.plan?.isEmpty ?? true)
-            && (config.profile != .rawDJI || store.settings.effectiveModuleConfigMode == .qdc507Voice)
+            && isModeAvailable(store.settings.effectiveModuleConfigMode)
     }
 
     private var moduleVoiceModeSelected: Bool {
-        store.settings.effectiveModuleConfigMode == .qdc507Voice
+        store.usesQDC507VoiceRuntime
     }
 
     private var canOperateModuleVoiceRuntime: Bool {
@@ -378,11 +378,8 @@ struct ModuleConfigSettingsCard: View {
     }
 
     private var targetIdentity: ModuleUSBIdentity? {
-        switch config.composition?.identity {
-        case .djiOriginal: .ec25
-        case .ec25: .djiOriginal
-        case nil: nil
-        }
+        guard store.configurationIdentity != .ec21 else { return nil }
+        return config.composition?.identity?.switchTarget
     }
 
     private var currentIdentityText: String {
@@ -447,14 +444,13 @@ struct ModuleConfigSettingsCard: View {
                 }
             }
             .labelsHidden()
-            .disabled(config.composition?.identity == nil)
+            .disabled(!ModuleConfigMode.allCases.contains(where: isModeAvailable))
         }
     }
 
     private func isModeAvailable(_ mode: ModuleConfigMode) -> Bool {
-        guard let identity = config.composition?.identity else { return false }
-        if identity == .ec25 { return true }
-        return identity == .djiOriginal && mode == .qdc507Voice
+        store.configurationIdentity != .ec21
+            && config.composition?.identity?.supportsPreset(mode) == true
     }
 
     private var modeBinding: Binding<ModuleConfigMode> {
@@ -513,7 +509,8 @@ struct ModuleConfigSettingsCard: View {
                     .disabled(
                         !canRead
                             || !config.applyPhase.allowsNewApply
-                            || config.profile == .rawDJI
+                            || !composition.isQuectelIdentity
+                            || store.configurationIdentity == .ec21
                             || interface.kind == .atPort
                     )
                     .help(localized(
@@ -587,14 +584,15 @@ struct ModuleConfigSettingsCard: View {
     private var planSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             MacSettingsRow(title: planTitleKey, help: "moduleconfig.plan.apply_hint") {
-                if let plan = config.plan, !plan.isEmpty {
+                if isModeAvailable(store.settings.effectiveModuleConfigMode),
+                   let plan = config.plan, !plan.isEmpty {
                     Button(localized("moduleconfig.apply.action")) {
                         confirmingApply = true
                     }
                     .controlSize(.regular)
                     .disabled(!canApply)
                 } else {
-                    Text(localized(alreadyTargetKey))
+                    Text(localized(presetStatusKey))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -614,7 +612,8 @@ struct ModuleConfigSettingsCard: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, 14)
-            } else if let plan = config.plan, !plan.isEmpty {
+            } else if isModeAvailable(store.settings.effectiveModuleConfigMode),
+                      let plan = config.plan, !plan.isEmpty {
                 ForEach(plan.changes) { change in
                     HStack(spacing: 6) {
                         Text(localized(change.fieldKey))
@@ -669,8 +668,13 @@ struct ModuleConfigSettingsCard: View {
         }
     }
 
-    private var alreadyTargetKey: String {
-        switch store.settings.effectiveModuleConfigMode {
+    private var presetStatusKey: String {
+        let mode = store.settings.effectiveModuleConfigMode
+        guard isModeAvailable(mode),
+              ModuleConfigPlanner.reachedTarget(config.composition, mode: mode) else {
+            return "moduleconfig.plan.unavailable"
+        }
+        return switch mode {
         case .macFull: "moduleconfig.plan.already_standard"
         case .qdc507Voice: "moduleconfig.plan.already_qdc507_voice"
         case .mobile: "moduleconfig.plan.already_mobile"

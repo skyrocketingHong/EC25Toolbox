@@ -6,6 +6,7 @@ import Foundation
 extension ModemStore {
     var usesQDC507VoiceRuntime: Bool {
         settings.effectiveModuleConfigMode == .qdc507Voice
+            && configurationIdentity?.supportsPreset(.qdc507Voice) == true
     }
 
     func refreshModuleVoiceRuntimeStatus() {
@@ -74,6 +75,9 @@ extension ModemStore {
             return
         }
         run {
+            guard self.usesQDC507VoiceRuntime else {
+                throw ModuleConfigApplyError.unsupportedConfiguration
+            }
             let lines = try await self.sendUnlogged("AT+QADBKEY?", timeout: 4_000)
             guard let challenge = QDC507ADBKey.parseChallenge(lines) else {
                 throw ModuleVoiceRuntimeError.commandFailed(
@@ -90,6 +94,10 @@ extension ModemStore {
     /// ADB interface for this physical module, checks root/kernel identity,
     /// pushes to tmpfs, loads the two modules, and runs the helper's check.
     func prepareQDC507VoiceRuntime() {
+        guard usesQDC507VoiceRuntime else {
+            state.lastError = localized("moduleconfig.plan.unavailable")
+            return
+        }
         guard let descriptor = moduleDescriptor, transport is EC25Transport else {
             state.lastError = localized("modulevoice.error.direct_only")
             return

@@ -4,6 +4,18 @@ English | [简体中文](./CHANGELOG_ZH.md)
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 27.1.1
+
+### Added
+
+- Recognize the Quectel EC21 USB identity `2c7c:0121` for AT management. The contributor verified basic AT queries on EC21-EUX. Voice, eUICC, VoWiFi, and USB networking on EC21 remain unverified.
+
+### Fixed
+
+- Bind Network status, service actions, DHCP recovery, and traffic sampling to the selected physical USB modem.
+- Keep EC21 USB identity and interface settings read-only, and show module configuration presets as unavailable.
+- Use the source app plist for packaging version defaults and the packaged app version for archive names and the IMS user agent.
+
 ## 27.1
 
 This entry records only the final net change in the current source tree relative to the remote `main` baseline.

@@ -15,14 +15,14 @@
 <p align="center">
   <img src="https://img.shields.io/badge/platform-macOS%2026%2B-lightgrey" alt="平台：macOS 26 或更高版本">
   <img src="https://img.shields.io/badge/Swift-6.2-orange" alt="Swift 6.2">
-  <img src="https://img.shields.io/badge/version-27.1-blue" alt="版本 27.1">
+  <img src="https://img.shields.io/badge/version-27.1.1-blue" alt="版本 27.1.1">
   <img src="https://img.shields.io/badge/eSTK%20%26%20VoWiFi-experimental-yellow" alt="eSTK 与 VoWiFi 为实验功能">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0--only-blue" alt="AGPL-3.0-only 许可证"></a>
 </p>
 
-EC25 Toolbox 是一款原生 macOS 菜单栏工具，面向 Quectel EC25、兼容的 Baiwang USB 模块以及兼容的第一代 DJI Cellular Dongle（LTE USB Modem）。应用通过 IOKit 与 IOUSBHost 通信，在一个 SwiftUI 应用中提供模块状态、短信、通话、SIM 安全、GNSS、网络、远程管理、eUICC 操作和实验性 VoWiFi 能力。
+EC25 Toolbox 是一款原生 macOS 菜单栏工具，面向 Quectel EC25、EC21、兼容的 Baiwang USB 模块以及兼容的第一代 DJI Cellular Dongle（LTE USB Modem）。应用通过 IOKit 与 IOUSBHost 通信，在一个 SwiftUI 应用中提供模块状态、短信、通话、SIM 安全、GNSS、网络、远程管理、eUICC 操作和实验性 VoWiFi 能力。
 
-当前源码版本：**27.1** · Bundle Identifier：**`ing.fuyaoskyrocket.ec25toolbox`**
+当前源码版本：**27.1.1** · Bundle Identifier：**`ing.fuyaoskyrocket.ec25toolbox`**
 
 > [!WARNING]
 > **eSTK/eUICC、VoWiFi 和可选 QDC507 语音运行时均为实验功能。** 模块固件、eUICC、SIM、运营商、接入网络和硬件差异可能导致失败或数据丢失。修改 Profile、模块配置或语音路由前，请备份关键数据并保留独立恢复方式。
@@ -32,7 +32,7 @@ EC25 Toolbox 是一款原生 macOS 菜单栏工具，面向 Quectel EC25、兼�
 
 ## 当前能力
 
-- 通过原生 USB transport 自动发现 EC25 兼容身份 `2c7c:0125` 和第一代 DJI 原始身份 `2ca3:4006`。
+- 通过原生 USB transport 自动发现 EC25 兼容身份 `2c7c:0125`、EC21 `2c7c:0121` 和第一代 DJI 原始身份 `2ca3:4006`。
 - 在模块报告的 USB 组合受支持时，提供用户确认后执行的 USB 身份流程：保留接口标志、备份配置、重启并验证，失败时回滚；不刷写固件，也不改变物理硬件。
 - 为每个物理模块维护一个长期存在、按 IMEI 建立索引的 `ModemStore`。设备选择、备注、绑定/解绑、完全删除已解绑保留记录、按 SIM 隔离的内容和按模块路由的通知彼此独立。
 - 使用连续 AT 输入读取器、行分帧、prompt 处理、最终响应收集、非请求事件分类和可重连事件分发；指令 transaction 与模块事件不再竞争 USB 输入管线。
@@ -75,9 +75,13 @@ EC25 Toolbox 是一款原生 macOS 菜单栏工具，面向 Quectel EC25、兼�
 
 ## DJI Cellular Dongle 兼容性
 
-EC25 Toolbox 最初用于重新利用第一代 [DJI Cellular Dongle（LTE USB Modem）](https://store.dji.com/uk/product/dji-cellular-dongle-lte-usb-modem) 内的 LTE USB 模块。transport 同时识别 `2ca3:4006` 和 `2c7c:0125`。当模块返回受支持的 `QCFG usbcfg` 组合时，设置页可使用同一套配置备份、重启、验证和回滚管线执行可逆的“仅切换身份”流程。
+EC25 Toolbox 最初用于重新利用第一代 [DJI Cellular Dongle（LTE USB Modem）](https://store.dji.com/uk/product/dji-cellular-dongle-lte-usb-modem) 内的 LTE USB 模块。transport 同时识别 `2ca3:4006` 和 `2c7c:0125`。当模块返回受支持的 `QCFG usbcfg` 组合时，设置页可在 EC25 兼容身份和 DJI 原始身份之间切换，并执行配置备份、重启、验证和失败回滚。
 
 USB ID 一致不能单独证明兼容性，实际固件、USB 组合、接口编号、endpoint 和 AT 行为仍必须符合 transport 预期。这是社区硬件再利用路径，不是 DJI 官方模式；DJI Cellular Dongle 2 尚未验证。源码级流程已有聚焦测试，但仍需真实设备验收。
+
+## EC21 兼容性
+
+贡献者在 EC21-EUX 上验证了 USB AT 通道与基础查询。EC21 的 USB 身份和接口开关为只读，模块配置预设不可用。语音、eUICC、VoWiFi 和 USB 联网尚未在 EC21 上验证。
 
 ## 实验功能
 
@@ -108,7 +112,7 @@ Profile 下载、切换、删除、通知处理和恢复仍取决于卡片、固
 - macOS 26 或更高版本
 - 包含 macOS 27 SDK 的 Xcode
 - Swift 6.2 或更高版本
-- Quectel EC25、兼容 Baiwang 模块，或提供 `2c7c:0125` / `2ca3:4006` 且具有可读取 EC25 风格 AT 接口的兼容第一代 DJI Cellular Dongle
+- 提供可读取的 EC25 风格 AT 接口，并使用受支持的 USB 身份：EC25 兼容 `2c7c:0125`、EC21 `2c7c:0121` 或第一代 DJI 原始 `2ca3:4006`
 
 可选 QDC507 后端还要求模块直连、已取得 root、Linux 版本严格为 `3.18.44`、用户确认 ADB 访问，并能联网完成一次固定运行时下载；标准 `QPCMV` 后端不使用它。
 
@@ -285,7 +289,7 @@ LICENSE                               GNU AGPL v3 许可证文本
 
 ## 更新日志
 
-当前 27.1 相对远端 `main` 基线的净变化见 [CHANGELOG_ZH.md](CHANGELOG_ZH.md)。
+当前 27.1.1 相对远端 `main` 基线的净变化见 [CHANGELOG_ZH.md](CHANGELOG_ZH.md)。
 
 ## 许可证
 
