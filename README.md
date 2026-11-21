@@ -17,14 +17,14 @@
 <p align="center">
   <img src="https://img.shields.io/badge/platform-macOS%2026%2B-lightgrey" alt="Platform: macOS 26 or later">
   <img src="https://img.shields.io/badge/Swift-6.2-orange" alt="Swift 6.2">
-  <img src="https://img.shields.io/badge/version-27.1-blue" alt="Version 27.1">
+  <img src="https://img.shields.io/badge/version-27.1.1-blue" alt="Version 27.1.1">
   <img src="https://img.shields.io/badge/eSTK%20%26%20VoWiFi-experimental-yellow" alt="eSTK and VoWiFi are experimental">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0--only-blue" alt="AGPL-3.0-only license"></a>
 </p>
 
-EC25 Toolbox is a native macOS menu bar utility for Quectel EC25, compatible Baiwang USB modems, and compatible first-generation DJI Cellular Dongle (LTE USB Modem) hardware. It communicates through IOKit and IOUSBHost and combines modem status, SMS, calls, SIM security, GNSS, networking, remote management, eUICC operations, and experimental VoWiFi in one SwiftUI application.
+EC25 Toolbox is a native macOS menu bar utility for Quectel EC25 and EC21, compatible Baiwang USB modems, and compatible first-generation DJI Cellular Dongle (LTE USB Modem) hardware. It communicates through IOKit and IOUSBHost and combines modem status, SMS, calls, SIM security, GNSS, networking, remote management, eUICC operations, and experimental VoWiFi in one SwiftUI application.
 
-Current source version: **27.1** · Bundle identifier: **`ing.fuyaoskyrocket.ec25toolbox`**
+Current source version: **27.1.1** · Bundle identifier: **`ing.fuyaoskyrocket.ec25toolbox`**
 
 > [!WARNING]
 > **eSTK/eUICC, VoWiFi, and the optional QDC507 voice runtime are experimental.** Firmware, eUICC, SIM, carrier, access-network, and hardware differences can cause failures or data loss. Back up critical data and keep an independent recovery path before changing profiles, module configuration, or voice-routing state.
@@ -45,7 +45,7 @@ Current source version: **27.1** · Bundle identifier: **`ing.fuyaoskyrocket.ec2
 
 ## Current capabilities
 
-- Discovers the EC25-compatible USB identity `2c7c:0125` and the original first-generation DJI identity `2ca3:4006` through the native USB transport.
+- Discovers EC25-compatible `2c7c:0125`, EC21 `2c7c:0121`, and original first-generation DJI `2ca3:4006` through the native USB transport.
 - Provides a confirmation-gated USB identity workflow that preserves reported interface flags, backs up configuration, restarts and verifies the module, and rolls back on failure when the reported composition is supported. It does not flash firmware or change physical hardware.
 - Uses one long-lived, IMEI-indexed `ModemStore` per physical module. Device selection, notes, bind/unbind state, complete deletion of retained unbound entries, SIM-scoped content, and module-routed notifications remain separate for each module.
 - Uses a continuous AT input reader with line framing, prompt handling, final-response collection, unsolicited-event classification, and reconnect-aware event delivery. Command transactions and modem events no longer compete for the USB input pipe.
@@ -88,9 +88,13 @@ The screenshots below show the English menu bar popover, standalone settings win
 
 ## DJI Cellular Dongle compatibility
 
-EC25 Toolbox originally began as a way to reuse the LTE USB modem inside the first-generation [DJI Cellular Dongle (LTE USB Modem)](https://store.dji.com/uk/product/dji-cellular-dongle-lte-usb-modem). The transport recognizes both `2ca3:4006` and `2c7c:0125`. When a module reports a supported `QCFG usbcfg` composition, Settings can apply a reversible identity-only conversion using the same backup, restart, verification, and rollback pipeline as other module configuration changes.
+EC25 Toolbox originally began as a way to reuse the LTE USB modem inside the first-generation [DJI Cellular Dongle (LTE USB Modem)](https://store.dji.com/uk/product/dji-cellular-dongle-lte-usb-modem). The transport recognizes both `2ca3:4006` and `2c7c:0125`. When the device reports a supported `QCFG usbcfg` composition, Settings can switch between the EC25-compatible and original DJI identities using the same backup, restart, verification, and rollback pipeline as other module configuration changes.
 
 The USB ID alone does not prove compatibility. Firmware, USB composition, interface numbering, endpoints, and AT behavior must match the transport's expectations. This is a community hardware-reuse path, not an official DJI mode; DJI Cellular Dongle 2 has not been validated. The source-level flow is covered by focused tests, but real-device acceptance is still required.
+
+## EC21 compatibility
+
+The USB AT channel and basic queries were tested by the contributor on an EC21-EUX. EC21 USB identity and interface switches are read-only, and module presets are unavailable. Voice, eUICC, VoWiFi, and USB networking remain unverified on EC21.
 
 ## Experimental features
 
@@ -121,7 +125,7 @@ It is not macOS system Wi-Fi Calling, does not create a system VPN, and does not
 - macOS 26 or later
 - Xcode containing the macOS 27 SDK
 - Swift 6.2 or later
-- A Quectel EC25, compatible Baiwang modem, or compatible first-generation DJI Cellular Dongle exposing `2c7c:0125` or `2ca3:4006` and a readable EC25-style AT interface
+- A modem with a readable EC25-style AT interface and a supported USB identity: EC25-compatible `2c7c:0125`, EC21 `2c7c:0121`, or original first-generation DJI `2ca3:4006`
 
 The optional QDC507 backend additionally requires a directly connected rooted module, exactly Linux `3.18.44`, user-approved ADB access, and network access for the one-time pinned runtime download. It is not used by the standard `QPCMV` backend.
 
@@ -298,7 +302,7 @@ Review `ThirdParty/lpac/LICENSES`, `ThirdParty/lpac/REUSE.toml`, `ThirdParty/Eas
 
 ## Changelog
 
-See [CHANGELOG.md](CHANGELOG.md) for the current 27.1 net change relative to the remote `main` baseline.
+See [CHANGELOG.md](CHANGELOG.md) for the current 27.1.1 net change relative to the remote `main` baseline.
 
 ## License
 

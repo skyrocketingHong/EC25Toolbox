@@ -100,6 +100,15 @@ struct ModuleConfigBackupStore {
 }
 
 extension ModemStore {
+    var configurationIdentity: ModuleUSBIdentity? {
+        let attached = ModuleUSBIdentity(
+            vendorID: moduleDescriptor?.vendorID,
+            productID: moduleDescriptor?.productID
+        )
+        if attached == .ec21 { return attached }
+        return state.moduleConfig.composition?.identity ?? attached
+    }
+
     /// Re-reads the module's USB/IMS/VoLTE configuration. Every query is
     /// optional: unsupported keys are recorded as failed instead of
     /// aborting the round.
@@ -215,6 +224,12 @@ extension ModemStore {
     // MARK: - Apply pipeline
 
     private func applyModuleConfigPlanImpl(_ plan: ModuleConfigPlan) async throws {
+        guard state.connected,
+              configurationIdentity != .ec21,
+              let identity = state.moduleConfig.composition?.identity,
+              plan.verificationTarget.canApply(to: identity) else {
+            throw ModuleConfigApplyError.unsupportedConfiguration
+        }
         state.moduleConfig.manualRecoverySteps = []
         // Nothing is written before a fresh backup of the current state.
         let backup = try makeModuleConfigBackup()
@@ -352,6 +367,7 @@ extension ModemStore {
 extension ModuleConfigApplyError: LocalizedError {
     var errorDescription: String? {
         switch self {
+        case .unsupportedConfiguration: return localized("moduleconfig.plan.unavailable")
         case .moduleDidNotReturn: return localized("moduleconfig.error.module_did_not_return")
         case .restoreMismatch: return localized("moduleconfig.error.restore_mismatch")
         case .noRestoreCommand: return localized("moduleconfig.error.no_restore_command")

@@ -137,8 +137,10 @@ extension ModemStore {
     /// Never creates or reconfigures services: recovery only repairs the
     /// existing app-managed service, so re-enumeration cannot duplicate it.
     private func performDHCPRenewTier() async {
-        guard let service = state.network.service,
-              let nic = state.network.nic,
+        let current = await currentModuleNetworkStatus()
+        guard let service = current.service,
+              service.serviceID == state.network.service?.serviceID,
+              let nic = current.nic,
               service.enabled,
               service.usesDHCP,
               nic.bsdName == service.bsdName else {
@@ -147,12 +149,15 @@ extension ModemStore {
         }
         do {
             try await systemHelper.networkRenewDHCP(serviceID: service.serviceID)
+            guard await currentModuleNetworkStatus().nic == nic else {
+                throw ModemNetworkError.noInterface
+            }
             try await systemHelper.networkForceInterfaceRefresh(bsdName: nic.bsdName)
             // A fresh lease can take a few seconds; re-sample the link
             // before judging the tier.
             for _ in 0..<4 {
                 try? await Task.sleep(for: .seconds(2))
-                refreshNetworkStatusImpl()
+                await refreshNetworkStatusImpl()
                 if state.network.moduleLink.isReady {
                     break
                 }
@@ -178,7 +183,7 @@ extension ModemStore {
             _ = try await send("AT+COPS=0", timeout: 10_000)
             for _ in 0..<5 {
                 try? await Task.sleep(for: .seconds(3))
-                refreshNetworkStatusImpl()
+                await refreshNetworkStatusImpl()
                 if state.network.moduleLink.isReady, try await packetDomainAttached() {
                     finishRecovery(.networkReattach, recovered: true)
                     return

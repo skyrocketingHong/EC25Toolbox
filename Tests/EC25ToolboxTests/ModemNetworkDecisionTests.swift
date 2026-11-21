@@ -3,8 +3,9 @@ import XCTest
 
 final class ModemNetworkDecisionTests: XCTestCase {
     private let nic = ModemNICInfo(
-        usbVID: 0x2c7c,
-        usbPID: 0x0125,
+        usbDevice: USBModemDescriptor(
+            vendorID: 0x2c7c, productID: 0x0125, serialNumber: "EC25", locationID: 0x1000
+        ),
         bsdName: "en7",
         macAddress: "0a:1b:2c:3d:4e:5f"
     )
@@ -100,8 +101,55 @@ final class ModemNetworkDecisionTests: XCTestCase {
         XCTAssertFalse(ModemNICMatcher.isModuleVendor(0x05ac))
         XCTAssertTrue(ModemNICMatcher.isModuleVendor(0x1234, vendorID: 0x1234))
         XCTAssertTrue(ModemNICMatcher.isSupportedIdentity(usbVID: 0x2c7c, usbPID: 0x0125))
+        XCTAssertTrue(ModemNICMatcher.isSupportedIdentity(usbVID: 0x2c7c, usbPID: 0x0121))
         XCTAssertTrue(ModemNICMatcher.isSupportedIdentity(usbVID: 0x2ca3, usbPID: 0x4006))
         XCTAssertFalse(ModemNICMatcher.isSupportedIdentity(usbVID: 0x2ca3, usbPID: 0x0125))
+    }
+
+    func testEachModuleUsesItsOwnNetworkService() {
+        let ec21 = USBModemDescriptor(
+            vendorID: 0x2c7c, productID: 0x0121, serialNumber: "EC21", locationID: 0x2000
+        )
+        let ec21NIC = ModemNICInfo(usbDevice: ec21, bsdName: "en9", macAddress: "")
+        let candidates = [nic, ec21NIC]
+        let ec25Service = service("EC25", bsdName: "en7")
+        let ec21Service = service("EC21", bsdName: "en9", enabled: false)
+
+        XCTAssertEqual(ModemNICMatcher.interface(for: nic.usbDevice, in: candidates), nic)
+        let selected = ModemNICMatcher.interface(for: ec21, in: candidates)
+        XCTAssertEqual(selected, ec21NIC)
+        XCTAssertEqual(
+            ModemNetworkPlan.servicePlan(
+                nic: selected, services: [ec25Service, ec21Service], preferredName: "Modem"
+            ),
+            .useExisting(ec21Service)
+        )
+        XCTAssertNil(ModemNICMatcher.interface(for: ec21, in: [nic]))
+    }
+
+    func testNICMatchingDoesNotCrossPortsOrReuseAReplacedDevice() {
+        var differentPort = nic.usbDevice
+        differentPort.locationID = 0x2000
+        var replacement = nic.usbDevice
+        replacement.serialNumber = "Replacement"
+        let otherNIC = ModemNICInfo(usbDevice: differentPort, bsdName: "en5", macAddress: "")
+        let replacementNIC = ModemNICInfo(usbDevice: replacement, bsdName: "en7", macAddress: "")
+
+        XCTAssertEqual(ModemNICMatcher.interface(for: nic.usbDevice, in: [otherNIC, nic]), nic)
+        XCTAssertNil(ModemNICMatcher.interface(for: nic.usbDevice, in: [otherNIC, replacementNIC]))
+    }
+
+    func testNICMatchingFallsBackOnlyToAnUnambiguousSerial() {
+        var withoutLocation = nic.usbDevice
+        withoutLocation.locationID = nil
+        var duplicate = nic.usbDevice
+        duplicate.locationID = 0x2000
+        let otherNIC = ModemNICInfo(usbDevice: duplicate, bsdName: "en9", macAddress: "")
+
+        XCTAssertEqual(ModemNICMatcher.interface(for: withoutLocation, in: [nic]), nic)
+        XCTAssertNil(ModemNICMatcher.interface(for: withoutLocation, in: [nic, otherNIC]))
+        withoutLocation.serialNumber = nil
+        XCTAssertNil(ModemNICMatcher.interface(for: withoutLocation, in: [nic]))
     }
 
     func testMACFormatting() {
@@ -116,7 +164,13 @@ final class ModemNetworkDecisionTests: XCTestCase {
     func testUSBIdentityFormatting() {
         XCTAssertEqual(nic.usbIdentity, "2c7c:0125")
         XCTAssertEqual(
-            ModemNICInfo(usbVID: 0x2c7c, usbPID: 0x0800, bsdName: "en5", macAddress: "").usbIdentity,
+            ModemNICInfo(
+                usbDevice: USBModemDescriptor(
+                    vendorID: 0x2c7c, productID: 0x0800, serialNumber: nil, locationID: 0x2000
+                ),
+                bsdName: "en5",
+                macAddress: ""
+            ).usbIdentity,
             "2c7c:0800"
         )
     }

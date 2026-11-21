@@ -890,7 +890,7 @@
 /* Transport, errors, and activity log */
 "transport.not_open" = "原生 USB AT 接口尚未打开";
 "transport.enumeration_failed" = "USB 接口枚举失败：%@";
-"transport.supported_devices_not_found" = "无法打开受支持的 EC25 或 DJI 原始 USB 身份：%@";
+"transport.supported_devices_not_found" = "无法打开受支持的 USB 模块：%@";
 "transport.interface_not_found" = "未找到可访问的 %@ USB 接口；请确认设备已连接且未被其他应用占用";
 "transport.at_interface_not_found" = "未找到可响应 AT 的 USB bulk 接口%@";
 "transport.interface_probe_failed" = "if%d out=0x%02x in=0x%02x；首次=%@；重试=%@%@";
@@ -1188,7 +1188,7 @@
 
 "settings.group.moduleconfig" = "USB 身份与接口";
 "moduleconfig.identity.label" = "USB 身份";
-"moduleconfig.identity.help" = "EC25 兼容身份为 2C7C:0125；EC21 身份为 2C7C:0121；一代 DJI 原始身份为 2CA3:4006。切换身份时保留模块报告的全部接口开关。";
+"moduleconfig.identity.help" = "EC25 兼容身份与第一代 DJI 原始身份可以互相切换。EC21 的 USB 身份和接口设置为只读。";
 "moduleconfig.identity.ec25" = "EC25 兼容身份";
 "moduleconfig.identity.ec21" = "EC21";
 "moduleconfig.identity.djiOriginal" = "DJI 原始身份";
@@ -1239,6 +1239,7 @@
 "moduleconfig.plan.title.mac_full" = "恢复 Mac 完整模式计划";
 "moduleconfig.plan.title.mobile" = "iPhone/iPad 模式计划";
 "moduleconfig.plan.apply_hint" = "应用会写入上方命令并重启模块；执行前会自动重新备份当前配置。";
+"moduleconfig.plan.unavailable" = "当前模块配置无法使用此预设。";
 "moduleconfig.plan.already_standard" = "当前配置已符合 Mac 完整模式（标准 EC25 组合、USB Audio 开启），无需修改。";
 "moduleconfig.plan.already_mobile" = "USB Audio 已关闭，符合 iPhone/iPad 模式，无需修改。";
 "moduleconfig.log.backed_up" = "模块配置备份已保存。";
@@ -1446,7 +1447,8 @@
 "gnss.capability.note.supported" = "固件已确认支持 GNSS，可启动定位引擎。";
 "gnss.capability.note.unsupported" = "当前固件/USB 组合明确报告不支持 GNSS，无法在此模块上启动定位。可重新探测确认结论，或核对模块型号与固件。";
 "network.empty.no_nic_connected" = "模块已连接，但未发现 ECM/MBIM/RMNET 网卡。请在“设置 → 设备”检查 USB 网络模式后重试。";
-"network.empty.disconnected" = "未连接 EC25/兼容设备。连接后此处会显示模块网卡、网络服务、出口策略与流量。";
+"network.empty.disconnected" = "连接受支持的 USB 模块后，可查看网卡、网络服务、出口策略和流量。";
+"network.empty.local_only" = "请在模块直连的 Mac 上查看和管理 USB 网络服务。";
 "network.empty.usb_mode" = "当前 USB 模式";
 "network.field.usb_mode" = "USB 网络模式";
 

@@ -8,18 +8,29 @@ extension ModemStore {
     /// plug/unplug, wake, or re-enumeration, and never duplicates anything.
     func refreshNetworkStatus() {
         runRefresh {
-            self.refreshNetworkStatusImpl()
+            await self.refreshNetworkStatusImpl()
         }
     }
 
+    private func networkUSBDevice() async -> USBModemDescriptor? {
+        guard let local = transport as? EC25Transport else { return nil }
+        if let moduleDescriptor { return moduleDescriptor }
+        let activeDevice = await local.activeDevice
+        return transport is EC25Transport ? activeDevice : nil
+    }
+
+    func currentModuleNetworkStatus() async -> ModemNetworkStatus {
+        ModemNICDiscovery.currentStatus(for: await networkUSBDevice())
+    }
+
     /// Snapshot helper shared by the user action and the general refresh flow.
-    func refreshNetworkStatusImpl() {
-        var status = ModemNICDiscovery.currentStatus()
+    func refreshNetworkStatusImpl() async {
+        var status = await currentModuleNetworkStatus()
         status.defaultPath = state.network.defaultPath
         status.traffic = state.network.traffic
         status.lastSession = state.network.lastSession
         state.network = status
-        syncTrafficSampling(bsdName: status.nic?.bsdName)
+        syncTrafficSampling(nic: status.nic)
         refreshExitFacts()
     }
 
@@ -57,28 +68,23 @@ extension ModemStore {
     /// Keeps the sampling loop aligned with the currently discovered NIC:
     /// starts it when a module interface exists, persists and stops it when
     /// the interface disappears or re-enumerates under a different BSD name.
-    func syncTrafficSampling(bsdName: String?) {
-        if let bsdName {
-            if trafficSampledBSDName != bsdName {
-                stopTrafficSampling(persist: true)
-            }
-            trafficSampledBSDName = bsdName
-            startTrafficSampling(bsdName: bsdName)
-        } else {
-            trafficSampledBSDName = nil
-            stopTrafficSampling(persist: true)
-        }
+    func syncTrafficSampling(nic: ModemNICInfo?) {
+        guard trafficSampledNIC != nic else { return }
+        stopTrafficSampling(persist: true)
+        guard let nic else { return }
+        trafficSampledNIC = nic
+        startTrafficSampling(nic: nic)
     }
 
     /// Samples interface counters every two seconds while the module NIC is
     /// the one being watched.
-    private func startTrafficSampling(bsdName: String) {
+    private func startTrafficSampling(nic: ModemNICInfo) {
         guard trafficPollTask == nil else { return }
         state.network.lastSession = trafficArchive.lastSession()
         trafficPollTask = Task { [weak self] in
             while !Task.isCancelled {
-                guard let self, self.trafficSampledBSDName == bsdName else { break }
-                self.collectTrafficSample(bsdName: bsdName)
+                guard let self, self.trafficSampledNIC == nic else { break }
+                self.collectTrafficSample(bsdName: nic.bsdName)
                 try? await Task.sleep(for: .seconds(2))
             }
         }
@@ -88,6 +94,7 @@ extension ModemStore {
     func stopTrafficSampling(persist: Bool) {
         trafficPollTask?.cancel()
         trafficPollTask = nil
+        trafficSampledNIC = nil
         trafficLastSample = nil
         guard persist, let session = state.network.traffic.session, session.hasTraffic else { return }
         trafficArchive.record(TrafficSessionRecord(
@@ -130,7 +137,7 @@ extension ModemStore {
     /// touched.
     func configureModuleNetworkService() {
         run {
-            let nic = ModemNICDiscovery.discoverModuleNICs().first
+            let nic = ModemNICDiscovery.nic(for: await self.networkUSBDevice())
             let plan = ModemNetworkPlan.servicePlan(
                 nic: nic,
                 services: ModemNICDiscovery.currentServices(),
@@ -152,22 +159,27 @@ extension ModemStore {
                     serviceName: serviceName
                 )
             }
-            self.refreshNetworkStatusImpl()
+            await self.refreshNetworkStatusImpl()
         }
     }
 
     /// Enables or disables the dedicated modem service through the helper.
     /// Toggling other services is intentionally not offered.
     func setModuleNetworkServiceEnabled(_ enabled: Bool) {
+        let expectedServiceID = state.network.service?.serviceID
         run {
-            guard let service = self.state.network.service else {
+            guard let service = await self.currentModuleNetworkStatus().service,
+                  service.serviceID == expectedServiceID else {
+                await self.refreshNetworkStatusImpl()
                 throw ModemNetworkError.noService
             }
-            try await self.systemHelper.networkSetServiceEnabled(
-                serviceID: service.serviceID,
-                enabled: enabled
-            )
-            self.refreshNetworkStatusImpl()
+            if service.enabled != enabled {
+                try await self.systemHelper.networkSetServiceEnabled(
+                    serviceID: service.serviceID,
+                    enabled: enabled
+                )
+            }
+            await self.refreshNetworkStatusImpl()
         }
     }
 }

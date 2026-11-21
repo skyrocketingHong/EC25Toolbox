@@ -1,9 +1,7 @@
 import Foundation
 
-/// USB identities shipped by the first-generation DJI dongle, the
-/// EC25-compatible application profile, and the EC21 series. All are accepted
-/// by the native transport so changing identity can always be verified and
-/// reversed inside the app.
+/// USB identities recognized by the native transport. Only the EC25 and
+/// first-generation DJI identities form a reversible configuration pair.
 enum ModuleUSBIdentity: String, CaseIterable, Equatable, Sendable {
     case ec25
     case ec21
@@ -24,6 +22,22 @@ enum ModuleUSBIdentity: String, CaseIterable, Equatable, Sendable {
         case .ec25: 0x0125
         case .ec21: 0x0121
         case .djiOriginal: 0x4006
+        }
+    }
+
+    var switchTarget: Self? {
+        switch self {
+        case .ec25: .djiOriginal
+        case .djiOriginal: .ec25
+        case .ec21: nil
+        }
+    }
+
+    func supportsPreset(_ mode: ModuleConfigMode) -> Bool {
+        switch self {
+        case .ec25: true
+        case .djiOriginal: mode == .qdc507Voice
+        case .ec21: false
         }
     }
 
@@ -219,6 +233,21 @@ enum ModuleConfigVerificationTarget: Equatable, Sendable {
     case identity(ModuleUSBIdentity)
     case composition(USBComposition)
     case qdc507Runtime(composition: USBComposition, imsLTE: Int, volteDisabled: Int)
+
+    func canApply(to identity: ModuleUSBIdentity) -> Bool {
+        switch self {
+        case let .mode(mode):
+            identity.supportsPreset(mode)
+        case .interface:
+            identity == .ec25
+        case let .identity(target):
+            identity.switchTarget == target
+        case let .composition(target):
+            identity == .ec25 && target.identity == identity
+        case let .qdc507Runtime(target, _, _):
+            identity.supportsPreset(.qdc507Voice) && target.identity == identity
+        }
+    }
 }
 
 /// A pending modification plan: the field-level diff shown in the UI and
@@ -370,7 +399,7 @@ enum ModuleConfigPlanner {
         composition: USBComposition?,
         target: ModuleUSBIdentity
     ) -> ModuleConfigPlan? {
-        guard let composition, composition.identity != nil,
+        guard let composition, composition.identity?.switchTarget == target,
               composition.interfaces.count >= 5,
               let vendorID = composition.vendorID,
               let productID = composition.productID else { return nil }
@@ -439,7 +468,7 @@ enum ModuleConfigPlanner {
             verificationTarget: .mode(.qdc507Voice)
         )
         guard let composition,
-              composition.identity != nil,
+              composition.identity?.supportsPreset(.qdc507Voice) == true,
               composition.isEnabled(.atPort) == true,
               composition.isEnabled(.adb) != nil,
               composition.isEnabled(.uac) != nil,
@@ -735,7 +764,9 @@ enum ModuleConfigPlanner {
         case .macFull:
             return reachedStandardTarget(current)
         case .qdc507Voice:
-            guard let current, current.identity != nil else { return false }
+            guard let current, current.identity?.supportsPreset(.qdc507Voice) == true else {
+                return false
+            }
             return current.isEnabled(.atPort) == true
                 && current.isEnabled(.adb) == true
                 && current.isEnabled(.uac) == true
@@ -762,7 +793,8 @@ enum ModuleConfigPlanner {
         case let .composition(expected):
             composition == expected
         case let .qdc507Runtime(expected, expectedIMS, expectedVoLTEDisabled):
-            composition == expected
+            expected.identity?.supportsPreset(.qdc507Voice) == true
+                && composition == expected
                 && imsLTE == expectedIMS
                 && volteDisabled == expectedVoLTEDisabled
         }
@@ -772,6 +804,7 @@ enum ModuleConfigPlanner {
 /// Failures of the apply/restore pipeline that need their own user-facing
 /// explanation beyond the raw transport error.
 enum ModuleConfigApplyError: Error, Equatable {
+    case unsupportedConfiguration
     /// The module never re-enumerated its AT port after CFUN=1,1.
     case moduleDidNotReturn
     /// The post-restore composition differs from the backup.

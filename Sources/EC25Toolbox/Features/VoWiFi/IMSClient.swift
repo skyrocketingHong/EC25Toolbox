@@ -1,6 +1,9 @@
 import Foundation
 
 actor IMSClient {
+    private static let userAgent = (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String)
+        .map { "EC25-Toolbox/\($0)" } ?? "EC25-Toolbox"
+
     typealias SMSHandler = @Sendable (IMSDecodedSMS) async -> Void
     typealias LogHandler = @Sendable (String) async -> Void
     typealias FailureHandler = @Sendable (Error) async -> Void
@@ -173,7 +176,7 @@ actor IMSClient {
             ("Supported", "path, gruu, outbound, sec-agree"),
             ("Security-Client", securityClient),
             ("P-Access-Network-Info", "IEEE-802.11;i-wlan-node-id=\(innerAddress)"),
-            ("User-Agent", "EC25-Toolbox/27.1")
+            ("User-Agent", Self.userAgent)
         ])
         if let authorization {
             headers.append((proxyAuthorization ? "Proxy-Authorization" : "Authorization", authorization))

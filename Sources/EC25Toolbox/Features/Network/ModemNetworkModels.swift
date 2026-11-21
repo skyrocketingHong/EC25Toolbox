@@ -3,14 +3,11 @@ import Foundation
 /// Identity of the modem's USB-attached network interface as presented by
 /// macOS: the Quectel USB ancestry, the BSD name, and the NIC's MAC address.
 struct ModemNICInfo: Equatable, Sendable {
-    var usbVID: UInt16
-    var usbPID: UInt16
-    var bsdName: String
-    var macAddress: String
+    let usbDevice: USBModemDescriptor
+    let bsdName: String
+    let macAddress: String
 
-    var usbIdentity: String {
-        String(format: "%04x:%04x", Int(usbVID), Int(usbPID))
-    }
+    var usbIdentity: String { usbDevice.usbIdentity }
 }
 
 /// User-readable snapshot of the `SCNetworkService` bound to the modem NIC.
@@ -91,7 +88,6 @@ enum ModemNetworkPlan: Equatable, Sendable {
 }
 
 enum ModemNICMatcher {
-    /// Both reversible module identities are supported during first-use setup.
     static let quectelVendorID: UInt16 = 0x2c7c
     static let djiVendorID: UInt16 = 0x2ca3
 
@@ -100,9 +96,28 @@ enum ModemNICMatcher {
     }
 
     static func isSupportedIdentity(usbVID: UInt16, usbPID: UInt16) -> Bool {
-        ModuleUSBIdentity.allCases.contains {
-            usbVID == UInt16($0.vendorID) && usbPID == UInt16($0.productID)
+        ModuleUSBIdentity(vendorID: Int(usbVID), productID: Int(usbPID)) != nil
+    }
+
+    static func interface(
+        for device: USBModemDescriptor,
+        in candidates: [ModemNICInfo]
+    ) -> ModemNICInfo? {
+        let matchingModel = candidates.filter {
+            $0.usbDevice.vendorID == device.vendorID && $0.usbDevice.productID == device.productID
         }
+        if let locationID = device.locationID {
+            return matchingModel.first { candidate in
+                guard candidate.usbDevice.locationID == locationID else { return false }
+                if let expected = device.serialNumber, let actual = candidate.usbDevice.serialNumber {
+                    return expected == actual
+                }
+                return true
+            }
+        }
+        guard let serialNumber = device.serialNumber else { return nil }
+        let serialMatches = matchingModel.filter { $0.usbDevice.serialNumber == serialNumber }
+        return serialMatches.count == 1 ? serialMatches.first : nil
     }
 
     /// Formats the six-byte `IOMACAddress` registry value as lowercase

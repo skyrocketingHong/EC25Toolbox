@@ -55,7 +55,7 @@ struct NetworkView: View {
 
     @ViewBuilder
     private var categoryContent: some View {
-        if let nic = network.nic {
+        if store.state.remoteManagement.mode == .direct, let nic = network.nic {
             switch selectedCategory {
             case .interface:
                 VStack(spacing: 14) {
@@ -83,7 +83,9 @@ struct NetworkView: View {
                 )
                 .frame(minHeight: 220, maxHeight: .infinity)
 
-                if store.state.connected { usbModeHintCard }
+                if store.state.connected, store.state.remoteManagement.mode == .direct {
+                    usbModeHintCard
+                }
             }
         }
     }
@@ -96,7 +98,8 @@ struct NetworkView: View {
     /// Distinguishes "modem connected, no NIC" (points the user at the
     /// device/USB-mode settings) from "no modem at all" (re-detect).
     private var emptyReasonKey: String {
-        store.state.connected ? "network.empty.no_nic_connected" : "network.empty.disconnected"
+        if store.state.remoteManagement.mode == .remote { return "network.empty.local_only" }
+        return store.state.connected ? "network.empty.no_nic_connected" : "network.empty.disconnected"
     }
 
     /// Lists the module's current USB network mode so the user can act on

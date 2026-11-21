@@ -198,6 +198,35 @@ final class ModuleConfigModelsTests: XCTestCase {
         XCTAssertEqual(toDJI?.verificationTarget, .identity(.djiOriginal))
     }
 
+    func testEC21IsRecognizedWithoutEnablingConfigurationWrites() throws {
+        let ec21 = try XCTUnwrap(QCFGParser.parseUSBCfg([
+            #"+QCFG: "usbcfg",0x2C7C,0x0121,1,1,1,1,1,0,0"#
+        ]))
+        XCTAssertEqual(ec21.identity, .ec21)
+        XCTAssertEqual(ModuleUSBIdentity.ec21.displayValue, "2C7C:0121")
+        XCTAssertTrue(ModuleUSBIdentity.connectionOrder.contains(.ec21))
+        XCTAssertNil(ec21.identity?.switchTarget)
+
+        for mode in ModuleConfigMode.allCases {
+            XCTAssertEqual(ec21.identity?.supportsPreset(mode), false)
+            XCTAssertTrue(ModuleConfigPlanner.plan(
+                mode: mode, composition: ec21, imsLTE: 0, volteDisabled: 1
+            ).commands.isEmpty)
+            XCTAssertFalse(ModuleConfigPlanner.reachedTarget(ec21, mode: mode))
+        }
+
+        XCTAssertNil(ModuleConfigPlanner.identityPlan(composition: ec21, target: .ec25))
+        XCTAssertNil(ModuleConfigPlanner.identityPlan(composition: composition(), target: .ec21))
+        XCTAssertNil(ModuleConfigPlanner.interfacePlan(composition: ec21, kind: .uac, enabled: true))
+
+        let qdc507 = ModuleConfigPlanner.qdc507VoicePlan(
+            composition: composition(vendorID: 0x2CA3, adb: 0, uac: 0)
+        )
+        XCTAssertFalse(qdc507.isEmpty)
+        XCTAssertTrue(qdc507.verificationTarget.canApply(to: .djiOriginal))
+        XCTAssertFalse(qdc507.verificationTarget.canApply(to: .ec21))
+    }
+
     func testIdentityVerificationRequiresExactVendorAndProductPair() {
         XCTAssertTrue(ModuleConfigPlanner.reachedTarget(
             composition: composition(vendorID: 0x2CA3, productID: 0x4006),

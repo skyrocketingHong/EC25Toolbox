@@ -206,6 +206,15 @@ func buildBundledLPAC(
     return outputURL
 }
 
+private struct BundleVersions: Decodable {
+    let CFBundleShortVersionString: String
+    let CFBundleVersion: String
+
+    init(contentsOf url: URL) throws {
+        self = try PropertyListDecoder().decode(Self.self, from: Data(contentsOf: url))
+    }
+}
+
 @discardableResult
 func packageApp() throws -> URL {
     let sdkVersion = environment["MACOS_SDK_VERSION"] ?? "27"
@@ -213,7 +222,10 @@ func packageApp() throws -> URL {
     let appName = environment["APP_NAME"] ?? "EC25 Toolbox"
     let displayName = environment["BUNDLE_DISPLAY_NAME"] ?? appName
     let bundleIdentifier = environment["BUNDLE_IDENTIFIER"] ?? "ing.fuyaoskyrocket.ec25toolbox"
-    let appVersion = environment["APP_VERSION"] ?? "27.1"
+    let sourceVersions = try BundleVersions(
+        contentsOf: rootURL.appendingPathComponent("Resources/EC25Toolbox-Info.plist")
+    )
+    let appVersion = environment["APP_VERSION"] ?? sourceVersions.CFBundleShortVersionString
     let appURL = distURL.appendingPathComponent("\(appName).app", isDirectory: true)
     let contentsURL = appURL.appendingPathComponent("Contents", isDirectory: true)
     let macOSURL = contentsURL.appendingPathComponent("MacOS", isDirectory: true)
@@ -367,7 +379,7 @@ func packageApp() throws -> URL {
         "CFBundleName": displayName,
         "CFBundlePackageType": "APPL",
         "CFBundleShortVersionString": appVersion,
-        "CFBundleVersion": environment["BUILD_NUMBER"] ?? "27.1",
+        "CFBundleVersion": environment["BUILD_NUMBER"] ?? sourceVersions.CFBundleVersion,
         "LSMinimumSystemVersion": "26.0",
         "LSUIElement": true,
         "NSHighResolutionCapable": true,
@@ -422,7 +434,6 @@ func packageApp() throws -> URL {
 }
 
 func releaseArtifacts(skipBuild: Bool) throws {
-    let version = environment["VERSION"] ?? environment["APP_VERSION"] ?? "27.1"
     let appURL: URL
     if skipBuild {
         appURL = distURL.appendingPathComponent("EC25 Toolbox.app", isDirectory: true)
@@ -432,6 +443,9 @@ func releaseArtifacts(skipBuild: Bool) throws {
     guard fileManager.fileExists(atPath: appURL.path) else {
         throw ToolFailure.message("应用 bundle 不存在：\(appURL.path)")
     }
+
+    let packagedVersions = try BundleVersions(contentsOf: appURL.appendingPathComponent("Contents/Info.plist"))
+    let version = environment["VERSION"] ?? packagedVersions.CFBundleShortVersionString
 
     print("==> 验证签名")
     try run("/usr/bin/codesign", ["--verify", "--deep", "--strict", appURL.path])

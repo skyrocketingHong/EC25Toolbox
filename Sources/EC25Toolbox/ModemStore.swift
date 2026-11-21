@@ -130,7 +130,7 @@ final class ModemStore: ObservableObject {
     /// Traffic sampling loop state (Network tab chart).
     var trafficPollTask: Task<Void, Never>?
     var trafficLastSample: TrafficSample?
-    var trafficSampledBSDName: String?
+    var trafficSampledNIC: ModemNICInfo?
     lazy var trafficArchive = TrafficArchiveStore(
         fileURL: moduleSupportDirectory.appendingPathComponent("TrafficHistory/sessions.json")
     )
@@ -363,7 +363,7 @@ final class ModemStore: ObservableObject {
             } else {
                 self.clearMessagesForLockedSIM()
             }
-            self.refreshNetworkStatusImpl()
+            await self.refreshNetworkStatusImpl()
             self.state.lastUpdated = Date()
         }
     }
@@ -380,7 +380,7 @@ final class ModemStore: ObservableObject {
                 return
             }
             try await self.refreshInfoImpl()
-            self.refreshNetworkStatusImpl()
+            await self.refreshNetworkStatusImpl()
             self.state.lastUpdated = Date()
         }
     }
@@ -878,7 +878,6 @@ final class ModemStore: ObservableObject {
         // The USB NIC disappears with the device; re-discovered on reconnect.
         // Default-path observation keeps running, so it survives the reset.
         stopTrafficSampling(persist: true)
-        trafficSampledBSDName = nil
         let defaultPath = state.network.defaultPath
         let lastSession = state.network.lastSession
         state.network = ModemNetworkStatus()

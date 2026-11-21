@@ -19,7 +19,7 @@ final class ModemSessionCoordinatorTests: XCTestCase {
         )
     }
 
-    private func makeHarness() throws -> (
+    private func makeHarness(initialSettings: ModemSettings = .defaults) throws -> (
         coordinator: ModemSessionCoordinator,
         defaults: UserDefaults,
         root: URL
@@ -43,7 +43,7 @@ final class ModemSessionCoordinatorTests: XCTestCase {
             defaults: defaults,
             smsArchive: sms,
             callLogStore: calls,
-            initialSettings: .defaults,
+            initialSettings: initialSettings,
             startsDeviceSessions: false
         )
         return (coordinator, defaults, root)
@@ -61,6 +61,23 @@ final class ModemSessionCoordinatorTests: XCTestCase {
         XCTAssertEqual(harness.coordinator.selectedDeviceID, second.moduleID)
         XCTAssertTrue(harness.coordinator.selectedStore === secondStore)
         XCTAssertEqual(harness.coordinator.selectedDescriptor?.imei, second.imei)
+    }
+
+    func testSharedVoicePresetDoesNotSelectQDC507RuntimeForEC21() throws {
+        var settings = ModemSettings.defaults
+        settings.moduleConfigPreferredMode = ModuleConfigMode.qdc507Voice.rawValue
+        let harness = try makeHarness(initialSettings: settings)
+        let ec21 = USBModemDescriptor(
+            vendorID: 0x2c7c, productID: 0x0121, serialNumber: "EC21", locationID: 1
+        )
+        let ec25 = descriptor(serial: "EC25", location: 2)
+
+        harness.coordinator.reconcile(discovered: [ec21, ec25])
+        let ec21Store = try XCTUnwrap(harness.coordinator.store(for: ec21.id))
+        let ec25Store = try XCTUnwrap(harness.coordinator.store(for: ec25.id))
+        XCTAssertEqual(ec21Store.settings.effectiveModuleConfigMode, .qdc507Voice)
+        XCTAssertFalse(ec21Store.usesQDC507VoiceRuntime)
+        XCTAssertTrue(ec25Store.usesQDC507VoiceRuntime)
     }
 
     func testIMEIResolutionMigratesSelectionAndModuleNote() throws {
