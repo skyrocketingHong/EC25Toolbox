@@ -303,3 +303,9 @@ See [CHANGELOG.md](CHANGELOG.md) for the current 27.1 net change relative to the
 ## License
 
 EC25 Toolbox is licensed under the [GNU Affero General Public License v3](LICENSE). Vendored components, referenced implementations, and separately downloaded runtime files retain their respective upstream terms; see the notices and license files under `ThirdParty/` before redistribution.
+
+## AI-Assisted Development
+
+Generative AI was used to assist with coding during the development of this project.
+
+[![Vibe PR](https://raw.githubusercontent.com/fenxer/llm-things/main/stickers/vibe-pr.svg)](https://github.com/fenxer/llm-things/blob/main/stickers/vibe-pr.svg)

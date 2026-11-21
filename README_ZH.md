@@ -290,3 +290,9 @@ LICENSE                               GNU AGPL v3 许可证文本
 ## 许可证
 
 EC25 Toolbox 使用 [GNU Affero General Public License v3](LICENSE)。Vendored 组件、参考实现和单独下载的运行时文件保留各自上游条款；再分发前请检查 `ThirdParty/` 下的通知与许可证文件。
+
+## AI 辅助开发
+
+本项目在开发过程中使用生成式 AI 协助编码。
+
+[![Vibe PR](https://raw.githubusercontent.com/fenxer/llm-things/main/stickers/vibe-pr.svg)](https://github.com/fenxer/llm-things/blob/main/stickers/vibe-pr.svg)
