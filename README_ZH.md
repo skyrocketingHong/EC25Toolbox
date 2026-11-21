@@ -183,6 +183,10 @@ swift Tools/ec25.swift release --no-build
 
 应用、归档、校验和及其他生成发布产物统一放在被忽略的 `dist/` 目录。
 
+### GitHub Actions
+
+向 main 推送提交和发起 PR 时运行 arm64 测试。发布前，更新应用 Info.plist 的版本和中英文更新日志，再向 main 推送标题严格为 `chore(release): <版本>` 的提交。补丁号为 0 时用两段式对外版本。测试和打包通过后，工作流为该提交打标签，并发布 DMG、ZIP 和 SHA-256 校验文件。
+
 ## 架构
 
 ```text

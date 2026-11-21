@@ -1,0 +1,170 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: macOS arm64 tests
+    runs-on: xcode-27
+    timeout-minutes: 20
+    outputs:
+      release_version: ${{ steps.release.outputs.release_version }}
+
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Validate release commit
+        id: release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'chore(release):')
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          app_version="$(plutil -extract CFBundleShortVersionString raw Resources/EC25Toolbox-Info.plist)"
+          # ASVS 2.2.1: Validate the version before using it in tags or paths.
+          component='(0|[1-9][0-9]*)'
+          if [[ ! "$app_version" =~ ^$component\.$component\.$component$ ]]; then
+            echo "::error::CFBundleShortVersionString must use Y.M.P."
+            exit 1
+          fi
+          release_version="${app_version%.0}"
+          if [[ "$(git log -1 --format=%s)" != "chore(release): $release_version" ]]; then
+            echo "::error::The release commit must be chore(release): $release_version."
+            exit 1
+          fi
+
+          extract_notes() {
+            awk -v heading="## $release_version" '
+              /^## / { if (found) exit; found = ($0 == heading); next }
+              found { print; if (NF) has_notes = 1 }
+              END { if (!has_notes) exit 1 }
+            ' "$1"
+          }
+          mkdir -p dist
+          {
+            printf '## 简体中文\n'
+            extract_notes CHANGELOG_ZH.md
+            printf '\n## English\n'
+            extract_notes CHANGELOG.md
+            printf '\nApple Silicon (arm64). Ad hoc signed and not notarized.\n'
+            printf '\n安装包面向 Apple Silicon（arm64），采用 ad hoc 签名，未经公证。\n'
+          } > dist/release-notes.md
+          printf 'release_version=%s\napp_version=%s\n' "$release_version" "$app_version" >> "$GITHUB_OUTPUT"
+
+      - name: Run Swift tests
+        shell: bash
+        run: |
+          test "$(uname -m)" = arm64
+          export DEVELOPER_DIR="$(xcode-select -p)"
+          sdk="$(xcrun --sdk macosx --show-sdk-path)"
+          case "$sdk" in
+            *MacOSX27*.sdk) ;;
+            *) echo "::error::Expected the macOS 27 SDK."; exit 1 ;;
+          esac
+          xcodebuild -version
+
+          export EC25_TEST_LPAC_PATH="$RUNNER_TEMP/ec25-lpac"
+          /bin/zsh Tools/build_lpac.sh "$EC25_TEST_LPAC_PATH"
+          swift test --disable-sandbox --arch arm64 --sdk "$sdk" \
+            -Xswiftc -plugin-path \
+            -Xswiftc "$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/usr/lib/swift/host/plugins"
+
+      - name: Build and verify release archives
+        if: steps.release.outputs.release_version != ''
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ steps.release.outputs.release_version }}
+          APP_BUNDLE_VERSION: ${{ steps.release.outputs.app_version }}
+        run: |
+          ./Tools/package_swiftui.sh
+          app='dist/EC25 Toolbox.app'
+          test "$(plutil -extract CFBundleShortVersionString raw "$app/Contents/Info.plist")" = "$APP_BUNDLE_VERSION"
+          test "$(lipo -archs "$app/Contents/MacOS/EC25Toolbox")" = arm64
+          VERSION="$RELEASE_VERSION" swift Tools/ec25.swift release --no-build
+
+      - name: Upload release archives
+        if: steps.release.outputs.release_version != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-archives
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
+          path: |
+            dist/EC25-Toolbox-${{ steps.release.outputs.release_version }}-arm64.dmg
+            dist/EC25-Toolbox-${{ steps.release.outputs.release_version }}-arm64.zip
+            dist/SHA256SUMS.txt
+            dist/release-notes.md
+
+  publish:
+    name: Publish GitHub Release
+    needs: check
+    # ASVS 8.3.1 and 2.3.1: Grant write access after the trusted push has passed its checks.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.check.outputs.release_version != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    concurrency:
+      group: release-${{ needs.check.outputs.release_version }}
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-archives
+          path: release
+
+      - name: Publish verified archives
+        shell: bash
+        working-directory: release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_VERSION: ${{ needs.check.outputs.release_version }}
+        run: |
+          dmg="EC25-Toolbox-$RELEASE_VERSION-arm64.dmg"
+          zip="EC25-Toolbox-$RELEASE_VERSION-arm64.zip"
+          for asset in "$dmg" "$zip" SHA256SUMS.txt release-notes.md; do
+            test -s "$asset"
+          done
+          sha256sum --check --strict SHA256SUMS.txt
+
+          check_tag() {
+            tag_ref="refs/tags/$RELEASE_VERSION"
+            tag_commit="$(git ls-remote --tags "$GITHUB_SERVER_URL/$GH_REPO.git" "$tag_ref" "$tag_ref^{}" \
+              | awk -v ref="$tag_ref" '$2 == ref { tag = $1 } $2 == ref "^{}" { commit = $1 } END { print (commit ? commit : tag) }')"
+            if [[ -n "$tag_commit" && "$tag_commit" != "$GITHUB_SHA" ]]; then
+              echo "::error::Tag $RELEASE_VERSION already points to a different commit."
+              exit 1
+            fi
+          }
+          check_tag
+
+          if release="$(gh release view "$RELEASE_VERSION" --json isDraft,targetCommitish,assets,url 2>/dev/null)"; then
+            if [[ "$(jq -r .isDraft <<< "$release")" == false ]]; then
+              test "$tag_commit" = "$GITHUB_SHA"
+              for asset in "$dmg" "$zip" SHA256SUMS.txt; do
+                jq -e --arg asset "$asset" 'any(.assets[]; .name == $asset)' <<< "$release" >/dev/null
+              done
+              jq -r .url <<< "$release"
+              exit 0
+            fi
+            test "$(jq -r .targetCommitish <<< "$release")" = "$GITHUB_SHA"
+            gh release upload "$RELEASE_VERSION" "$dmg" "$zip" SHA256SUMS.txt --clobber
+          else
+            gh release create "$RELEASE_VERSION" --draft --target "$GITHUB_SHA" \
+              --title "$RELEASE_VERSION" --notes-file release-notes.md \
+              "$dmg" "$zip" SHA256SUMS.txt
+          fi
+
+          check_tag
+          gh release edit "$RELEASE_VERSION" --draft=false --latest

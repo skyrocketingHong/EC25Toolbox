@@ -196,6 +196,10 @@ swift Tools/ec25.swift release --no-build
 
 Applications, archives, checksums, and other generated release artifacts belong in the ignored `dist/` directory.
 
+### GitHub Actions
+
+Pushes to main and pull requests run the arm64 test suite. To publish a release, update the app version in Info.plist and add the corresponding sections to both changelogs. Push a commit to main with the exact subject `chore(release): <version>`. Use the two-part display version when the patch number is zero. Once tests and packaging pass, the workflow tags that commit and publishes the DMG, ZIP, and SHA-256 checksums.
+
 ## Architecture
 
 ```text

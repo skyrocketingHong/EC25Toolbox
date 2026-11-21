@@ -14,7 +14,7 @@ OUTPUT="${1:-${ROOT_DIR}/.build/lpac/lpac}"
 resolve_developer_root() {
     # Unmatched /Volumes globs must vanish instead of aborting the script.
     setopt local_options null_glob
-    local candidate
+    local candidate sdk_directory
     local -a candidates
     candidates=(
         "${DEVELOPER_DIR:-}"
@@ -27,7 +27,8 @@ resolve_developer_root() {
     for candidate in "${candidates[@]}"; do
         [[ -n "${candidate}" ]] || continue
         [[ -d "${candidate}/Toolchains/XcodeDefault.xctoolchain" ]] || continue
-        [[ -d "${candidate}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX27.0.sdk" ]] || continue
+        sdk_directory="${candidate}/Platforms/MacOSX.platform/Developer/SDKs"
+        [[ -d "${sdk_directory}/MacOSX27.sdk" || -d "${sdk_directory}/MacOSX27.0.sdk" ]] || continue
         print -r -- "${candidate}"
         return 0
     done
@@ -39,7 +40,9 @@ if ! DEVELOPER_ROOT="$(resolve_developer_root)"; then
     exit 1
 fi
 CLANG="${DEVELOPER_ROOT}/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang"
-SDK="${DEVELOPER_ROOT}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX27.0.sdk"
+SDK_DIRECTORY="${DEVELOPER_ROOT}/Platforms/MacOSX.platform/Developer/SDKs"
+SDK="${SDK_DIRECTORY}/MacOSX27.sdk"
+[[ -d "${SDK}" ]] || SDK="${SDK_DIRECTORY}/MacOSX27.0.sdk"
 MINIMUM_VERSION="26.0"
 
 if [[ ! -x "${CLANG}" ]]; then
